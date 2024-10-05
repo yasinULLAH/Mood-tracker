@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Personalized Mood Tracker</title>
+    <style>
+        /* Basic Reset */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        /* Body Styling */
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f8ff;
+            padding: 20px;
+        }
+
+        /* Container */
+        .container {
+            max-width: 900px;
+            margin: auto;
+            background: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        /* Heading */
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        /* Mood Logging Section */
+        .mood-logging {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            margin-bottom: 30px;
+        }
+
+        .mood-logging div {
+            flex: 1 1 45%;
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+        }
+
+        input[type="date"], select, textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+
+        textarea {
+            resize: vertical;
+            height: 80px;
+        }
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            background: #28a745;
+            color: #fff;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            background: #218838;
+        }
+
+        /* Mood Entries */
+        .entries {
+            margin-bottom: 30px;
+        }
+
+        .entries h2 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .entry {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .entry-details {
+            flex: 1;
+        }
+
+        .entry-actions button {
+            background: #dc3545;
+            margin-left: 10px;
+        }
+
+        .entry-actions button:hover {
+            background: #c82333;
+        }
+
+        /* Chart Section */
+        .chart-section {
+            margin-bottom: 30px;
+        }
+
+        .chart-section h2 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        canvas {
+            width: 100%;
+            height: 400px;
+        }
+
+        /* Export & Share */
+        .export-share {
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+        }
+
+        .export-share button {
+            flex: 1 1 48%;
+            margin-bottom: 10px;
+        }
+
+        /* Responsive */
+        @media (max-width: 600px) {
+            .mood-logging div {
+                flex: 1 1 100%;
+            }
+
+            .export-share button {
+                flex: 1 1 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Personalized Mood Tracker</h1>
+
+        <!-- Mood Logging Section -->
+        <div class="mood-logging">
+            <div>
+                <label for="date">Select Date:</label>
+                <input type="date" id="date">
+            </div>
+            <div>
+                <label for="mood">Select Mood:</label>
+                <select id="mood">
+                    <option value="">--Select Mood--</option>
+                    <option value="Happy">😊 Happy</option>
+                    <option value="Sad">😢 Sad</option>
+                    <option value="Excited">🤩 Excited</option>
+                    <option value="Angry">😠 Angry</option>
+                    <option value="Relaxed">😌 Relaxed</option>
+                    <option value="Anxious">😰 Anxious</option>
+                </select>
+            </div>
+            <div style="flex: 1 1 100%;">
+                <label for="activity">Activities/Notes:</label>
+                <textarea id="activity" placeholder="Write about your day..."></textarea>
+            </div>
+            <div style="flex: 1 1 100%; text-align: center;">
+                <button id="add-entry">Add Entry</button>
+            </div>
+        </div>
+
+        <!-- Mood Entries -->
+        <div class="entries">
+            <h2>Your Entries</h2>
+            <div id="entries-list">
+                <!-- Entries will be added here -->
+            </div>
+        </div>
+
+        <!-- Chart Section -->
+        <div class="chart-section">
+            <h2>Mood Trends</h2>
+            <canvas id="mood-chart"></canvas>
+        </div>
+
+        <!-- Export & Share -->
+        <div class="export-share">
+            <button id="export-csv">Export as CSV</button>
+            <button id="share-progress">Share Progress</button>
+        </div>
+    </div>
+
+    <script>
+        // Selectors
+        const dateInput = document.getElementById('date');
+        const moodSelect = document.getElementById('mood');
+        const activityInput = document.getElementById('activity');
+        const addEntryButton = document.getElementById('add-entry');
+        const entriesList = document.getElementById('entries-list');
+        const exportCsvButton = document.getElementById('export-csv');
+        const shareProgressButton = document.getElementById('share-progress');
+        const moodChartCanvas = document.getElementById('mood-chart');
+
+        // Mood Data
+        let entries = [];
+
+        // Load Entries from localStorage
+        window.onload = function() {
+            if (localStorage.getItem('moodEntries')) {
+                entries = JSON.parse(localStorage.getItem('moodEntries'));
+                renderEntries();
+                renderChart();
+            }
+        }
+
+        // Add Entry
+        addEntryButton.addEventListener('click', addEntry);
+
+        function addEntry() {
+            const date = dateInput.value;
+            const mood = moodSelect.value;
+            const activity = activityInput.value.trim();
+
+            if (!date || !mood) {
+                alert('Please select both date and mood.');
+                return;
+            }
+
+            // Check for duplicate date
+            if (entries.some(entry => entry.date === date)) {
+                if (!confirm('An entry for this date already exists. Do you want to overwrite it?')) {
+                    return;
+                }
+                entries = entries.filter(entry => entry.date !== date);
+            }
+
+            const entry = { date, mood, activity };
+            entries.push(entry);
+            entries.sort((a, b) => new Date(a.date) - new Date(b.date));
+            saveEntries();
+            renderEntries();
+            renderChart();
+            clearInputs();
+        }
+
+        // Save Entries to localStorage
+        function saveEntries() {
+            localStorage.setItem('moodEntries', JSON.stringify(entries));
+        }
+
+        // Render Entries
+        function renderEntries() {
+            entriesList.innerHTML = '';
+            entries.forEach(entry => {
+                const div = document.createElement('div');
+                div.classList.add('entry');
+
+                const detailsDiv = document.createElement('div');
+                detailsDiv.classList.add('entry-details');
+                detailsDiv.innerHTML = `<strong>${entry.date}</strong> - ${entry.mood} <br> ${entry.activity}`;
+                div.appendChild(detailsDiv);
+
+                const actionsDiv = document.createElement('div');
+                actionsDiv.classList.add('entry-actions');
+
+                const deleteBtn = document.createElement('button');
+                deleteBtn.textContent = 'Delete';
+                deleteBtn.style.background = '#dc3545';
+                deleteBtn.style.color = '#fff';
+                deleteBtn.style.border = 'none';
+                deleteBtn.style.padding = '5px 10px';
+                deleteBtn.style.borderRadius = '4px';
+                deleteBtn.style.cursor = 'pointer';
+                deleteBtn.addEventListener('click', () => deleteEntry(entry.date));
+                actionsDiv.appendChild(deleteBtn);
+
+                div.appendChild(actionsDiv);
+
+                entriesList.appendChild(div);
+            });
+        }
+
+        // Delete Entry
+        function deleteEntry(date) {
+            if (confirm('Are you sure you want to delete this entry?')) {
+                entries = entries.filter(entry => entry.date !== date);
+                saveEntries();
+                renderEntries();
+                renderChart();
+            }
+        }
+
+        // Clear Inputs
+        function clearInputs() {
+            dateInput.value = '';
+            moodSelect.value = '';
+            activityInput.value = '';
+        }
+
+        // Export as CSV
+        exportCsvButton.addEventListener('click', exportCSV);
+
+        function exportCSV() {
+            if (entries.length === 0) {
+                alert('No entries to export.');
+                return;
+            }
+            let csvContent = "data:text/csv;charset=utf-8,Date,Mood,Activity\n";
+            entries.forEach(entry => {
+                const row = `${entry.date},${entry.mood},"${entry.activity.replace(/"/g, '""')}"`;
+                csvContent += row + "\n";
+            });
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement('a');
+            link.setAttribute('href', encodedUri);
+            link.setAttribute('download', 'mood_entries.csv');
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // Share Progress
+        shareProgressButton.addEventListener('click', shareProgress);
+
+        function shareProgress() {
+            if (entries.length === 0) {
+                alert('No entries to share.');
+                return;
+            }
+            const data = encodeURIComponent(JSON.stringify(entries));
+            const shareURL = `${window.location.origin}${window.location.pathname}?data=${data}`;
+            navigator.clipboard.writeText(shareURL).then(() => {
+                alert('Shareable link copied to clipboard!');
+            }).catch(err => {
+                alert('Failed to copy link.');
+            });
+        }
+
+        // Handle Shared Data
+        window.onpopstate = function() {
+            const params = new URLSearchParams(window.location.search);
+            if (params.has('data')) {
+                try {
+                    const sharedData = JSON.parse(decodeURIComponent(params.get('data')));
+                    if (Array.isArray(sharedData)) {
+                        entries = sharedData;
+                        saveEntries();
+                        renderEntries();
+                        renderChart();
+                    }
+                } catch (e) {
+                    console.error('Invalid shared data.');
+                }
+            }
+        }
+
+        // Chart Rendering
+        function renderChart() {
+            const ctx = moodChartCanvas.getContext('2d');
+            ctx.clearRect(0, 0, moodChartCanvas.width, moodChartCanvas.height);
+
+            if (entries.length === 0) {
+                ctx.font = "20px Arial";
+                ctx.fillStyle = "#555";
+                ctx.textAlign = "center";
+                ctx.fillText("No data to display.", moodChartCanvas.width / 2, moodChartCanvas.height / 2);
+                return;
+            }
+
+            const moods = ['Happy', 'Sad', 'Excited', 'Angry', 'Relaxed', 'Anxious'];
+            const moodColors = {
+                'Happy': '#FFD700',
+                'Sad': '#1E90FF',
+                'Excited': '#FF69B4',
+                'Angry': '#FF4500',
+                'Relaxed': '#32CD32',
+                'Anxious': '#8A2BE2'
+            };
+
+            const moodCounts = {};
+            moods.forEach(mood => moodCounts[mood] = 0);
+            entries.forEach(entry => {
+                if (moodCounts[entry.mood] !== undefined) {
+                    moodCounts[entry.mood]++;
+                }
+            });
+
+            const total = entries.length;
+            const chartRadius = Math.min(moodChartCanvas.width, moodChartCanvas.height) / 2 - 50;
+            const centerX = moodChartCanvas.width / 2;
+            const centerY = moodChartCanvas.height / 2;
+            let startAngle = 0;
+
+            for (let mood of moods) {
+                const count = moodCounts[mood];
+                if (count === 0) continue;
+                const sliceAngle = (count / total) * 2 * Math.PI;
+                ctx.beginPath();
+                ctx.moveTo(centerX, centerY);
+                ctx.arc(centerX, centerY, chartRadius, startAngle, startAngle + sliceAngle);
+                ctx.closePath();
+                ctx.fillStyle = moodColors[mood];
+                ctx.fill();
+                startAngle += sliceAngle;
+            }
+
+            // Legend
+            let legendX = 10;
+            let legendY = moodChartCanvas.height - 100;
+            moods.forEach(mood => {
+                if (moodCounts[mood] === 0) return;
+                ctx.fillStyle = moodColors[mood];
+                ctx.fillRect(legendX, legendY, 20, 20);
+                ctx.fillStyle = "#000";
+                ctx.font = "14px Arial";
+                ctx.fillText(`${mood} (${moodCounts[mood]})`, legendX + 30, legendY + 15);
+                legendX += 150;
+                if (legendX > moodChartCanvas.width - 150) {
+                    legendX = 10;
+                    legendY += 30;
+                }
+            });
+
+            // Title
+            ctx.font = "18px Arial";
+            ctx.fillStyle = "#333";
+            ctx.textAlign = "center";
+            ctx.fillText("Mood Distribution", centerX, 30);
+        }
+    </script>
+</body>
+</html>
